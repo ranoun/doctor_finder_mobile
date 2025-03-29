@@ -1,9 +1,10 @@
 <ion-header>
   <ion-toolbar>
+    <ion-title>Consultation History</ion-title>
+    <!-- Back Button -->
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/"></ion-back-button>
     </ion-buttons>
-    <ion-title>Consultation History</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -39,20 +40,20 @@
           
           <ion-card-content class="card-content">
             <div class="info-item">
-              <ion-icon name="medkit-outline" slot="start" class="info-icon"></ion-icon>
+              <ion-icon name="person-outline" slot="start" class="info-icon"></ion-icon>
               <div class="info-text">
-                <span class="label">Doctor:</span>
-                <span class="value">{{ appointment.doctor_name }}</span>
+                <span class="label">Patient:</span>
+                <span class="value">{{ appointment.patient_name }}</span>
               </div>
             </div>
             <div class="info-item">
-              <ion-icon name="calendar-outline" slot="start" class="info-icon"></ion-icon>
+              <ion-icon name="id-card-outline" slot="start" class="info-icon"></ion-icon>
               <div class="info-text">
-                <span class="label">Date:</span>
-                <span class="value">{{ appointment.appointment_date | date:'short' }}</span>
+                <span class="label">Patient ID:</span>
+                <span class="value">{{ appointment.user_id }}</span>
               </div>
             </div>
-            <!-- Added custom arrow inside the card -->
+            <!-- Custom arrow inside the card -->
             <ion-icon name="chevron-forward-outline" class="detail-arrow"></ion-icon>
           </ion-card-content>
         </ion-card>

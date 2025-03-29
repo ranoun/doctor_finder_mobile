@@ -49,7 +49,9 @@ export class AppComponent implements OnInit, OnDestroy {
   doctorMenuItems = [
     { title: 'Profile', url: '/profile', icon: 'person-outline' },
     { title: 'Schedule', url: '/schedule', icon: 'calendar' },
+    { title: 'Consultations', url: '/consultations', icon: 'medkit' },
     { title: 'Settings', url: '/settings', icon: 'settings' }
+   
   ];
   loggedOutMenuItems = [
     { title: 'Login', url: '/login', icon: 'log-in-outline' },

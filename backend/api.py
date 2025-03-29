@@ -80,7 +80,6 @@ class Message(db.Model):
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_read = db.Column(db.Boolean, default=False)
 
-# Appointment model (unchanged)
 class Appointment(db.Model):
     __tablename__ = 'appointments'
     id = db.Column(db.Integer, primary_key=True)
@@ -88,15 +87,22 @@ class Appointment(db.Model):
     doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), nullable=False)
     appointment_date = db.Column(db.DateTime, nullable=False)
     status = db.Column(db.Enum('Pending', 'Confirmed', 'Completed', 'Cancelled'), default='Pending')
+    patient = db.relationship('User', backref='appointments', lazy='joined')  # Patient relationship
+    doctor = db.relationship('Doctor', backref='appointments', lazy='joined')  # Doctor relationship
 
-    def to_dict(self):
-        return {
+    def to_dict(self, include_patient_name=False, include_doctor_name=False):
+        base_dict = {
             'id': self.id,
             'user_id': self.user_id,
             'doctor_id': self.doctor_id,
             'appointment_date': self.appointment_date.isoformat(),
-            'status': self.status
+            'status': self.status,
         }
+        if include_patient_name and self.patient:
+            base_dict['patient_name'] = f"{self.patient.first_name} {self.patient.last_name}"
+        if include_doctor_name and self.doctor:
+            base_dict['doctor_name'] = self.doctor.name
+        return base_dict
 
 # Favorite model (unchanged)
 class Favorite(db.Model):
@@ -111,7 +117,26 @@ class Favorite(db.Model):
             'user_id': self.user_id,
             'doctor_id': self.doctor_id
         }
+class Attachment(db.Model):
+    __tablename__ = 'attachments'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    type = db.Column(db.Enum('note', 'file'), nullable=False)
+    description = db.Column(db.Text)
+    content = db.Column(db.Text, nullable=False)
+    appid = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=False)
+    extension = db.Column(db.String(10))
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'type': self.type,
+            'description': self.description or '',
+            'content': self.content,
+            'appid': self.appid,
+            'extension': self.extension or ''
+        }
 # Database initialization (unchanged)
 with app.app_context():
     db.create_all()
@@ -284,9 +309,23 @@ def get_appointments():
     current_user_id = int(get_jwt_identity())
     data = request.get_json()
     user_id = data.get('user_id')
+    status = data.get('status')  
+    appointment_id = data.get('appointment_id')  
+
     if not user_id or user_id != current_user_id:
         return jsonify({'message': 'Unauthorized or invalid user ID'}), 403
-    appointments = Appointment.query.filter_by(user_id=user_id).all()
+    
+    if status:
+        appointments = Appointment.query.filter_by(user_id=user_id, status=status)
+        if appointment_id:
+            appointment = appointments.filter_by(id=appointment_id).first()
+            return jsonify(appointment.to_dict(include_doctor_name=True))
+ 
+
+        return jsonify([appointment.to_dict(include_doctor_name=True) for appointment in appointments.all()])
+    else:
+        appointments = Appointment.query.filter(Appointment.user_id == user_id, Appointment.status != "Completed").all()
+   # appointments = Appointment.query.filter_by(user_id=user_id).all()
     return jsonify([appointment.to_dict() for appointment in appointments])
 
 @app.route('/api/doctor-appointments', methods=['POST'])
@@ -295,13 +334,34 @@ def get_doctor_appointments():
     current_user_id = int(get_jwt_identity())
     data = request.get_json()
     doctor_id = data.get('doctor_id')
+    status = data.get('status')  # Optional status filter
+    appointment_id = data.get('appointment_id')  # Optional appointment ID filter
     
     user = db.session.get(User, current_user_id)
     if not user or not user.is_doctor or user.doctor_id != doctor_id:
         return jsonify({'message': 'Unauthorized: You can only view your own appointments'}), 403
 
-    appointments = Appointment.query.filter_by(doctor_id=doctor_id).all()
-    return jsonify([appointment.to_dict() for appointment in appointments])
+    # Build the query
+    query = Appointment.query.filter_by(doctor_id=doctor_id)
+    
+    if appointment_id:
+        # Return a single appointment with patient name if appointment_id is provided
+        appointment = query.filter_by(id=appointment_id).first()
+        if not appointment:
+            return jsonify({'message': 'Appointment not found'}), 404
+        return jsonify(appointment.to_dict(include_patient_name=True)), 200
+    else:
+        # Return an array of appointments with patient names if no appointment_id
+        if status:
+            if status not in ['Pending', 'Confirmed', 'Completed', 'Cancelled']:
+                return jsonify({'message': 'Invalid status value'}), 400
+            query = query.filter_by(status=status)
+        
+        appointments = query.all()
+        # Pass include_patient_name=True to include patient names in the response
+        return jsonify([appointment.to_dict(include_patient_name=True) for appointment in appointments]), 200
+
+
 
 @app.route('/api/doctor-available-slots', methods=['POST'])
 @jwt_required()
@@ -828,6 +888,133 @@ def add_notification_endpoint():
     return jsonify({'message': 'Notification added successfully', 'notification': notification.to_dict()}), 201
 
 
+#consultation
+@app.route('/api/consultations/history', methods=['GET'])
+@jwt_required()
+def get_consultation_history():
+    current_user_id = int(get_jwt_identity())
+    user = db.session.get(User, current_user_id)
+    if not user.is_doctor or not user.doctor_id:
+        return jsonify({'message': 'Unauthorized: Doctors only'}), 403
 
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('limit', 5, type=int)
+
+    # Fetch appointments with status 'Completed' (historical consultations)
+    query = Appointment.query.filter_by(doctor_id=user.doctor_id).filter(Appointment.status == 'Completed').order_by(Appointment.appointment_date.desc())
+    appointments = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    response = {
+        'consultations': [a.to_dict() for a in appointments.items],  # Rename to 'consultations' for frontend compatibility
+        'total': appointments.total,
+        'pages': appointments.pages,
+        'page': appointments.page
+    }
+    return jsonify(response), 200
+
+@app.route('/api/consultations', methods=['POST'])
+@jwt_required()
+def add_consultation():
+    current_user_id = int(get_jwt_identity())
+    user = db.session.get(User, current_user_id)
+    if not user.is_doctor or not user.doctor_id:
+        return jsonify({'message': 'Unauthorized: Doctors only'}), 403
+
+    data = request.get_json()
+    appointment_id = data.get('appointment_id')  # Required now, since we're updating an appointment
+   # notes = data.get('notes', '')
+
+    if not appointment_id:
+        return jsonify({'message': 'Appointment ID is required'}), 400
+
+    appointment = db.session.get(Appointment, appointment_id)
+    if not appointment or appointment.doctor_id != user.doctor_id:
+        return jsonify({'message': 'Invalid or mismatched appointment'}), 404
+
+    # Update the appointment
+    appointment.status = 'Completed'
+    #appointment.notes = notes
+
+    db.session.commit()
+    return jsonify({
+        'message': 'Consultation added successfully',
+        'consultation': appointment.to_dict()
+    }), 201
+#add attachement
+@app.route('/api/attachments', methods=['POST'])
+@jwt_required()
+def add_attachment():
+    current_user_id = int(get_jwt_identity())
+    data = request.get_json()
+    name = data.get('name')
+    attachment_type = data.get('type')
+    description = data.get('description')
+    content = data.get('content')
+    appid = data.get('appid')
+
+    if not all([name, attachment_type, appid]):
+        return jsonify({'message': 'Missing required fields'}), 400
+
+    if attachment_type not in ['note', 'file']:
+        return jsonify({'message': 'Invalid attachment type'}), 400
+
+    # Set content based on type
+    if attachment_type == 'note':
+        content = 'note'  # Default content for notes
+    elif not content:
+        return jsonify({'message': 'Content required for file'}), 400
+
+    # Extract extension if type is 'file'
+    extension = None
+    if attachment_type == 'file' and '.' in name:
+        extension = '.' + name.split('.')[-1].lower()
+
+    attachment = Attachment(
+        name=name,
+        type=attachment_type,
+        description=description,
+        content=content,
+        appid=appid,
+        extension=extension
+    )
+    db.session.add(attachment)
+    db.session.commit()
+
+    return jsonify({'message': 'Attachment added successfully', 'attachment': attachment.to_dict()}), 201
+# delete attachement
+@app.route('/api/attachments/<int:attachment_id>', methods=['DELETE'])
+@jwt_required()
+def delete_attachment(attachment_id):
+    current_user_id = int(get_jwt_identity())
+    attachment = db.session.get(Attachment, attachment_id)
+    if not attachment:
+        return jsonify({'message': 'Attachment not found'}), 404
+
+    # Check if the user is the doctor for this appointment
+    appointment = db.session.get(Appointment, attachment.appid)
+    user = db.session.get(User, current_user_id)
+    if not user or not user.is_doctor or user.doctor_id != appointment.doctor_id:
+        return jsonify({'message': 'Unauthorized'}), 403
+
+    db.session.delete(attachment)
+    db.session.commit()
+    return jsonify({'message': 'Attachment deleted successfully'}), 200
+#get attachement
+@app.route('/api/attachments/<int:appointment_id>', methods=['GET'])
+@jwt_required()
+def get_attachments(appointment_id):
+    current_user_id = int(get_jwt_identity())
+    user = db.session.get(User, current_user_id)
+    if not user:
+        return jsonify({'message': 'Unauthorized: Doctors only'}), 403
+
+    appointment = db.session.get(Appointment, appointment_id)
+    if not appointment:
+        return jsonify({'message': 'Invalid or mismatched appointment'}), 404
+
+    attachments = Attachment.query.filter_by(appid=appointment_id).all()
+    return jsonify({
+        'attachments': [a.to_dict() for a in attachments]
+    }), 200
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)

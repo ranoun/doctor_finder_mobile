@@ -1,34 +1,31 @@
-// For information on how to create your own theme, please see:
-// http://ionicframework.com/docs/theming/
 :root {
   /* Dark Theme (default) */
   --ion-background-color: #1f1f1f;
   --ion-text-color: #ffffff;
-  --ion-card-background: #2a2a2a;
+  --ion-card-background: #383838; // Darker gray for better contrast (was #2a2a2a)
   --ion-item-background: #3a3a3a;
   --ion-toolbar-background: #222222;
   --ion-tab-bar-background: #2a2a2a;
   --ion-accent-color: #1e90ff;
   --ion-subtext-color: #aaaaaa;
-  --ion-shadow-color: rgba(0, 0, 0, 0.3);
+  --ion-shadow-color: rgba(0, 0, 0, 0.5); // Stronger shadow
   --ion-icon-color: #ffffff;
-  --ion-message-received-color: #4a4a4a; /* White icons for dark mode */
+  --ion-message-received-color: #4a4a4a;
 }
 
 .light-theme {
   /* Light Theme */
   --ion-background-color: #f4f4f4;
   --ion-text-color: #333333;
-  --ion-card-background: #ffffff;
+  --ion-card-background: #fefefe; // Off-white for contrast (was #ffffff)
   --ion-item-background: #f9f9f9;
   --ion-toolbar-background: #ffffff;
   --ion-tab-bar-background: #f4f4f4;
   --ion-accent-color: #1e90ff;
   --ion-subtext-color: #666666;
-  --ion-shadow-color: rgba(0, 0, 0, 0.1);
-  --ion-icon-color: #333333; 
-  
-  --ion-message-received-color: #e0e0e0;/* Dark icons for light mode */
+  --ion-shadow-color: rgba(0, 0, 0, 0.2);
+  --ion-icon-color: #333333;
+  --ion-message-received-color: #e0e0e0;
 }
 
 /* Apply variables */

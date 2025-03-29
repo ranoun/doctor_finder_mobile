@@ -22,7 +22,25 @@ const routes: Routes = [
   {
     path: 'notifications',
     loadChildren: () => import('./notifications/notifications.module').then( m => m.NotificationsPageModule),canActivate: [AuthGuard]
+  },
+  {
+    path: 'consultations',
+    loadChildren: () => import('./consultations/consultations.module').then( m => m.ConsultationsPageModule)
+  },
+  {
+    path: 'select-appointment',
+    loadChildren: () => import('./select-appointment/select-appointment.module').then( m => m.SelectAppointmentPageModule)
+  },
+  
+  {
+    path: 'appointment-details',
+    loadChildren: () => import('./appointment-details/appointment-details.module').then( m => m.AppointmentDetailsPageModule),canActivate: [AuthGuard]
+  },
+  { path: 'appointment-details/:id', loadChildren: () => import('./appointment-details/appointment-details.module').then(m => m.AppointmentDetailsPageModule),canActivate: [AuthGuard] },  {
+    path: 'add-attachment',
+    loadChildren: () => import('./add-attachment/add-attachment.module').then( m => m.AddAttachmentPageModule)
   }
+
 
 // Updated route
 ];

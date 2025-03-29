@@ -70,6 +70,15 @@ CREATE TABLE notifications (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+CREATE TABLE attachments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    type ENUM('note', 'file') NOT NULL,
+    description TEXT NOT NULL,
+    content TEXT NOT NULL,
+    appid INT NOT NULL,
+    extension VARCHAR(10) NULL
+);
 
 -- Insert 50 doctors into doctors table
 INSERT INTO doctors (name, specialty, city, gender, address, phone) VALUES

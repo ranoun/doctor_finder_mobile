@@ -45,9 +45,16 @@ export class DoctorService {
     );
   }
 
-  getAppointments(): Observable<any[]> {
+  getAppointments(status? : string,appointment_id?: number): Observable<any[]> {
     const user = this.authService.getUser();
-    return this.http.post<any[]>(`${this.apiUrl}/appointments`, { user_id: user.id }, { headers: this.getHeaders() }).pipe(
+    const payload: {user_id:number; status?: string ; appointment_id?: number}={user_id: user.id };
+    if (status) {
+      payload.status = status;
+    }
+    if (appointment_id) {
+      payload.appointment_id = appointment_id;  // Add appointment_id to payload if provided
+    }
+    return this.http.post<any[]>(`${this.apiUrl}/appointments`, payload, { headers: this.getHeaders() }).pipe(
       catchError(err => {
         console.error('Error fetching appointments:', err);
         return throwError(() => new Error('Failed to fetch appointments'));
@@ -55,8 +62,15 @@ export class DoctorService {
     );
   }
 
-  getDoctorAppointments(doctorId: number): Observable<any[]> {
-    return this.http.post<any[]>(`${this.apiUrl}/doctor-appointments`, { doctor_id: doctorId }, { headers: this.getHeaders() }).pipe(
+  getDoctorAppointments(doctorId: number, status?: string, appointment_id?: number): Observable<any[]> {
+    const payload: { doctor_id: number; status?: string ; appointment_id?: number} = { doctor_id: doctorId };
+    if (status) {
+      payload.status = status;
+    }
+    if (appointment_id) {
+      payload.appointment_id = appointment_id;  // Add appointment_id to payload if provided
+    }
+    return this.http.post<any[]>(`${this.apiUrl}/doctor-appointments`, payload, { headers: this.getHeaders() }).pipe(
       catchError(err => {
         console.error('Error fetching doctor appointments:', err);
         return throwError(() => new Error('Failed to fetch doctor appointments'));
@@ -230,4 +244,40 @@ export class DoctorService {
       })
     );
   }
+  getConsultationHistory(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/consultations/history`, { headers: this.getHeaders() });
+  }
+
+  
+
+  addConsultation(data: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/consultations`, data, { headers: this.getHeaders() });
+  }
+  getAttachments(appointmentId: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/attachments/${appointmentId}`, { headers: this.getHeaders() }).pipe(
+      catchError(err => {
+        console.error('Error fetching attachments:', err);
+        return throwError(() => new Error('Failed to fetch attachments'));
+      })
+    );
+  }
+
+  addAttachment(data: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/attachments`, data, { headers: this.getHeaders() }).pipe(
+      catchError(err => {
+        console.error('Error adding attachment:', err);
+        return throwError(() => new Error('Failed to add attachment'));
+      })
+    );
+  }
+
+  deleteAttachment(attachmentId: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/attachments/${attachmentId}`, { headers: this.getHeaders() }).pipe(
+      catchError(err => {
+        console.error('Error deleting attachment:', err);
+        return throwError(() => new Error('Failed to delete attachment'));
+      })
+    );
+  }
+ 
 }
